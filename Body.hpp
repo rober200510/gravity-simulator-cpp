@@ -33,9 +33,10 @@ public:
         shape.setPosition(position);
     }
 
-    // Update physics (To be implemented)
     void update(float dt) {
-        // Placeholder for Stage 2
+        // Euler Integration and sync
+        position = position + (velocity * dt);
+        shape.setPosition(position);
     }
 
     // Render the body
