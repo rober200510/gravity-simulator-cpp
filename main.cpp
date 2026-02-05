@@ -60,7 +60,7 @@ int main() {
     }
 
     // Asteroid generation
-    int numAsteroids = 300;
+    int numAsteroids = 10;
 
     for (int i = 0; i < numAsteroids; i++) {
         float angle = static_cast<float>(std::rand() % 360) * PI / 180.0f;
@@ -97,6 +97,10 @@ int main() {
         float dt = elapsed.asSeconds();
         if (dt > 0.1f) dt = 0.1f;
 
+        for (auto& body : bodies) {
+            body.acceleration = {0.0f, 0.0f};
+        }
+
         //N-Body gravity algorithm
         for (size_t i = 0; i < bodies.size(); i++){
 
@@ -124,7 +128,7 @@ int main() {
                 sf::Vector2f forceVec = (direction / distance) * forceMagnitude;
 
                 // Add acceleration to velocity (a = F/m)
-                current.velocity += (forceVec / current.mass) * dt;
+                current.acceleration += (forceVec / current.mass);
             }
         }
 
