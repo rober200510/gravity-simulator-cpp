@@ -19,6 +19,11 @@ int main() {
     sf::RenderWindow window(sf::VideoMode(1600, 900), "N-Body Gravity Simulator - RK4");
     window.setFramerateLimit(60);
     
+    // --- CAMERA SYSTEM CONFIGURATION ---
+    sf::View view = window.getDefaultView();
+    bool isDragging = false;
+    sf::Vector2i oldMousePos;
+
     // Seed the random number generator for the asteroid belt
     std::srand(static_cast<unsigned>(std::time(nullptr)));
     
@@ -45,7 +50,11 @@ int main() {
         {180.0f, 4.0f, sf::Color(255, 140, 0)},
         {260.0f, 5.0f, sf::Color(0, 100, 255)},
         {340.0f, 2.5f, sf::Color(255, 50, 50)},
-        {650.0f, 12.0f, sf::Color(210, 180, 140)}
+        {650.0f, 12.0f, sf::Color(210, 180, 140)},
+        {1100.0f, 10.0f, sf::Color(238, 232, 170)},
+        {2000.0f, 7.0f, sf::Color(173, 216, 230)},
+        {3000.0f, 8.0f, sf::Color(0, 0, 128)},
+        {3900.0f, 0.8f, sf::Color(200, 180, 180)} //Pluto
     };
     
     // Instantiate planets and calculate perfect circular orbits
@@ -91,12 +100,54 @@ int main() {
     
     // Store initial energy for potential diagnostic/debugging use
     float initialEnergy = computeTotalEnergy(bodies, G);
-    
+
     // Main simulation loop
     while (window.isOpen()) {
         sf::Event event;
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed) window.close();
+
+            // --- SCROLL-BASED ZOOM ---
+            if (event.type == sf::Event::MouseWheelScrolled) {
+                if (event.mouseWheelScroll.wheel == sf::Mouse::VerticalWheel) {
+                    // Determine zoom direction: delta > 0 (Zoom In), delta < 0 (Zoom Out)
+                    float zoomFactor = (event.mouseWheelScroll.delta > 0) ? 0.9f : 1.1f;
+                    view.zoom(zoomFactor);
+                }
+            }
+            
+            // --- PANNING CONTROL (Input Detection) ---
+            if (event.type == sf::Event::MouseButtonPressed) {
+                if (event.mouseButton.button == sf::Mouse::Left) {
+                    isDragging = true;
+                    // Capture initial mouse position in pixel coordinates
+                    oldMousePos = sf::Mouse::getPosition(window);
+                }
+            }
+            if (event.type == sf::Event::MouseButtonReleased) {
+                if (event.mouseButton.button == sf::Mouse::Left) {
+                    isDragging = false;
+                }
+            }
+            
+            /// --- CAMERA TRANSLATION (Panning Logic) ---
+            if (event.type == sf::Event::MouseMoved) {
+                if (isDragging) {
+                    sf::Vector2i newMousePos = sf::Mouse::getPosition(window);
+                    
+                    // Transform pixel-space coordinates into world-space coordinates
+                    // This ensures consistent movement speed regardless of current zoom level
+                    sf::Vector2f oldWorldPos = window.mapPixelToCoords(oldMousePos, view);
+                    sf::Vector2f newWorldPos = window.mapPixelToCoords(newMousePos, view);
+                    
+                    // Calculate the spatial displacement vector
+                    sf::Vector2f delta = oldWorldPos - newWorldPos;
+                    view.move(delta);
+                    
+                    // Update reference position for the next frame
+                    oldMousePos = newMousePos; 
+                }
+            }
         }
         
         // Physics Sub-stepping: Perform multiple updates per frame for higher accuracy
@@ -115,6 +166,8 @@ int main() {
         
         // Render Frame
         window.clear(sf::Color::Black);
+
+        window.setView(view);
         
         for (auto& body : bodies) {
             body.draw(window);
