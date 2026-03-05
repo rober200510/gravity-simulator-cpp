@@ -24,6 +24,12 @@ int main() {
     bool isDragging = false;
     sf::Vector2i oldMousePos;
 
+    // --- VARIABLE TIME-STEP SYSTEM (TIME-WARP) ---
+    // Decouples simulation time from real-time to allow fast-forwarding/slow-motion
+    float timeScale = 1.0f;
+    const float frameBaseDt = 1.0f / 60.0f;
+    const float maxSafeSubDt = frameBaseDt / 4.0f;
+
     // Seed the random number generator for the asteroid belt
     std::srand(static_cast<unsigned>(std::time(nullptr)));
     
@@ -148,11 +154,43 @@ int main() {
                     oldMousePos = newMousePos; 
                 }
             }
+
+            // --- TIME-WARP CONTROLS ---
+            if (event.type == sf::Event::KeyPressed) {
+                // Increase simulation speed (Fast-forward)
+                if (event.key.code == sf::Keyboard::Right) {
+                    timeScale *= 2.0f;
+                    // Cap the maximum time scale to prevent CPU bottlenecking and frame drops
+                    if (timeScale > 1024.0f) timeScale = 1024.0f; 
+                    std::cout << "Velocidad de tiempo: " << timeScale << "x\n";
+                }
+                // Decrease simulation speed (Slow-motion)
+                if (event.key.code == sf::Keyboard::Left) {
+                    timeScale /= 2.0f;
+                    if (timeScale < 0.125f) timeScale = 0.125f; // Limit
+                    std::cout << "Velocidad de tiempo: " << timeScale << "x\n";
+                }
+                // Reset simulation speed to standard real-time
+                if (event.key.code == sf::Keyboard::Slash || event.key.code == sf::Keyboard::Space) {
+                    timeScale = 1.0f;
+                    std::cout << "Velocidad restaurada a 1x\n";
+                }
+            }
         }
         
-        // Physics Sub-stepping: Perform multiple updates per frame for higher accuracy
-        for (int sub = 0; sub < substeps; sub++) {
-            integrateRK4(bodies, subdt, G);
+        // --- DYNAMIC SUB-STEPPING CALCULATION ---
+        // Determine the total simulation time to advance during the current frame
+        float currentFrameDt = frameBaseDt * timeScale;
+        
+        // Calculate the minimum number of substeps required to keep the delta time strictly below maxSafeSubDt
+        int currentSubsteps = std::max(1, static_cast<int>(std::ceil(currentFrameDt / maxSafeSubDt)));
+        
+        // Distribute the frame's delta time evenly across the calculated substeps
+        float currentSubDt = currentFrameDt / currentSubsteps;
+
+        // Execute the RK4 integration using the dynamically scaled substeps
+        for (int sub = 0; sub < currentSubsteps; sub++) {
+            integrateRK4(bodies, currentSubDt, G);
         }
         
         // Update visual paths (trails) and graphical shapes
