@@ -5,6 +5,7 @@ Body::Body(float x, float y, float m, sf::Color c) {
     position.y = y;
     mass = m;
     velocity = {0.0f, 0.0f};
+    name = "Unknown";
     
     // VISUAL RADIUS LOGIC
     float visualRadius;
